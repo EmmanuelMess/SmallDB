@@ -1,0 +1,107 @@
+Classes:
+  Database
+    create(Filename)
+    create([(Name, Datatype)])
+    insertRow() -> Id
+    select(Query) -> Id
+    readDouble(Id, Name) -> double
+    readLong(Id, Name) -> uint64_t
+    readString(Id, Name) -> const std::string_view&
+    readDatetime(Id, Name) -> Datetime
+    writeDouble(Id, Name, double)
+    writeLong(Id, Name, uint64_t)
+    writeString(Id, Name, std::string_view)
+    writeDatetime(Id, Name, Datetime)
+    delete(Id)
+    save(Filename) (see Serialization)
+
+  Datatype
+    Double  (id letter 'D', size 64)
+    Long (id letter 'L', size 64)
+    String (id letter 'S') (with max string length)
+    Datetime (no timezone) (id letter 'T')
+
+  Datetime
+     year, month, day, hour, minute, second -> uint32_t
+
+  Query
+    Predicate operators:
+      AND
+      OR
+    Predicate constructors (operate between two columns or column and literal):
+      EQUALS
+      NOT_EQUALS
+      LESS_THAN
+      GREATER_THAN
+
+  Row identifier
+    Id -> uint64_t
+
+  Column identifier
+    Name -> std::string_view
+
+  Exceptions:
+    StringTooLong
+    ColumnNotFound
+
+Serialization:
+    |----------------|--------|-------|-------|-------|-------|-------|-   -|
+    | number of rows | header | row 0 | row 1 | row 2 | row 3 | row 4 | ... |
+    |----------------|--------|-------|-------|-------|-------|-------|-   -|
+
+  Header:
+    |---------------|------|-------------|------|-------------|-   -|------------|
+    | header length | name | type letter | name | type letter | ... | row length |
+    |---------------|------|-------------|------|-------------|-   -|------------|
+
+    * name is std::string_view::c_str() with unicode support
+
+    type letter:
+
+      |-----|-----------------|     |-----|     |-----|     |-----|
+      | 'S' | max size column | or  | 'D' | or  | 'L' | or  | 'T' |
+      |-----|-----------------|     |-----|     |-----|     |-----|
+
+      * type letter is the id letter for Datatype
+      * max size column is the max size of the column in bytes, it is only used for String
+
+  Row:
+    |----------|----------|----------|-   -|
+    | column 0 | column 1 | column 2 | ... |
+    |----------|----------|----------|-   -|
+
+    * row has predefined length according to each type for Double, Long and Datetime
+    * if there is a string_view in the row, there will be length information in header
+
+  Serialization for Datetime:
+    |------|-------|-----|------|--------|--------|
+    | year | month | day | hour | minute | second |
+    |------|-------|-----|------|--------|--------|
+
+    year, month, day, hour, minute, second are saved as uint32_t
+
+  Serialization for string:
+
+    |-          -|-       -|
+    | characters | padding |
+    |-          -|-       -|
+
+    * pad with 0 until assigned string size is filled (for row skipping conveniences)
+
+  * All lengths are uint32_t
+
+Program:
+  Database is created from a list of datatype and name.
+  Database is operated with write*() read*() and find()
+    if nonexistent columns are used, ColumnNotFound is thrown,
+    if writeString() is called with a string greater than the size given in Datatype, StringTooLong is thrown.
+    writeString() and readString() support arbitrary UTF8, UTF16, UTF32 usage.
+  Database can be saved to file with save(), use Serialization for file reference.
+  Database can be used afterwards, it will only save when save() is called.
+
+  Database can be created from file.
+
+  Query is created from one boolean predicate, and then can be contatenated with AND or OR with other simple predicates.
+  For Datetime greater and lower work like "before" and "after".
+  For String is lexicographical.
+  Other Datatypes work as expected.
