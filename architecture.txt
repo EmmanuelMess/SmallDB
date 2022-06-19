@@ -3,7 +3,7 @@ Classes:
     create(Filename)
     create([(Name, Datatype)])
     insertRow() -> Id
-    select(Query) -> Id
+    find(Query) -> Id
     readDouble(Id, Name) -> double
     readLong(Id, Name) -> uint64_t
     readString(Id, Name) -> const std::string_view&
